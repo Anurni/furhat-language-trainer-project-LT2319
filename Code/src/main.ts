@@ -72,6 +72,9 @@ interface MyDMContext extends DMContext {
   //noinputCounter: number;
   availableModels?: string[];
   messages: Message[];
+  targetLang: Message;
+  skillLevel: Message;
+  situation: Message;
 }
 interface DMContext {
   //count: number;
@@ -126,17 +129,21 @@ const dmMachine = setup({
 }).createMachine({
   context: 
     { 
-      messages: [{role: "user", content: "Hyvää iltaa. Kerro minulle jotain."}]
+      messages: [{role: "user", content: "This is were the first prompt for the model will be."}],
+      targetLang: {role: "user", content: ""},
+      skillLevel: {role: "user", content: ""},
+      situation : {role: "user", content: ""},
     },
   id: "DM",
   initial: "GetModels",
   states: {
+    // getModels state - API call to the ollama models
         GetModels: {
           invoke: {
             src: "get_ollama_models",
             input: null, 
             onDone: {
-              target: "Generate_LMM_answer",
+              target: "LanguageChoiceStateSpeak",
               actions: assign(({ event }) => {
                 console.log(`This is the event.output.models--> ${event.output.models}`);
                 return {
@@ -149,6 +156,103 @@ const dmMachine = setup({
             },
           },
         },
+
+    // LanguageChoice state speak - here the user will choose their target language 
+        LanguageChoiceStateSpeak: {
+            invoke: {
+              src: "fhSpeak",
+              input: { message : "Hi there! I am Furhat the Language Instructor. I am here to help build your confidence in speaking a foreign language. With me you can safely practise a variety of real-life situations in your target language. I will be able to give you feedback and some tips. I will give you more instructions soon, but for now, let's start by you telling me which language you would like to practise."}, //Hi there! I am Furhat the Language Instructor. I am here to help build your confidence in speaking a foreign language. With me you can safely practise a variety of real-life situations in your target language. I will be able to give you feedback and some tips. I will give you more instructions soon, but for now, let's start by you telling me which language you would like to practise.
+              onDone: {
+                target: "LanguageChoiceStateListen"
+              },
+              onError: {
+                target: "noInput"
+            }
+      },
+    },
+
+      // LanguageChoice state listen - for user's choice of language and assigning that to context (targetLang)
+      LanguageChoiceStateListen: {
+        invoke: {
+          src: "fhListen",
+        onDone: {
+          actions: [
+            assign(({ event }) => {
+              return { targetLang: { role: "user", content: event.output[0] }};
+          }),
+          ({context}) => console.log(`This is context target Lang ${context.targetLang.content}`)
+          ],
+          target: "SkillLevelStateSpeak"
+        },
+        onError: {
+          target: "noInput"
+        }
+  },
+},
+
+    // SkillLevel state speak - here the user will choose their skill level
+    SkillLevelStateSpeak: {
+      invoke: {
+        src: "fhSpeak",
+        input: { message : "Amazing! Now, what can you tell me about your skill level? On the European framework, which level would describe your skills the best? A1, B1 or C1?"},
+        onDone: {
+          target: "SkillLevelStateListen"
+        },
+        onError: {
+          target: "noInput"
+      }
+},
+},
+
+// SkillLevelChoice state listen - for user's choice of skill level
+SkillLevelStateListen: {
+  invoke: {
+    src: "fhListen",
+  onDone: {
+    actions: [
+      assign(({ event }) => {
+        return { skillLevel: { role: "user", content: event.output[0] }};
+    }),
+    ],
+    target: "SituationChoiceStateSpeak"
+  },
+  onError: {
+    target: "noInput"
+  }
+},
+},
+
+    // SituationChoice state speak - here the user will choose the situation
+    SituationChoiceStateSpeak: {
+      invoke: {
+        src: "fhSpeak",
+        input: { message : "Great! Now, I will give you some situations. Tell me the one you want to practise."},
+        onDone: {
+          target: "SituationChoiceStateListen"
+        },
+        onError: {
+          target: "noInput"
+      }
+},
+},
+
+// SituationChoice state listen - for user's choice of situation
+SituationChoiceStateListen: {
+  invoke: {
+    src: "fhListen",
+  onDone: {
+    actions: [
+      assign(({ event }) => {
+        return { situation: { role: "user", content: event.output[0] }};
+    }),
+    ],
+    target: "Generate_LMM_answer"
+  },
+  onError: {
+    target: "noInput"
+  }
+},
+},
 
         // in Prompt, the LMM answer gets generated and assigned to the context
         // in this state, we provide the model with the first prompt from the user (this is already in context.messages)
