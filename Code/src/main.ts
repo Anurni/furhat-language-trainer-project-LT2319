@@ -1,18 +1,20 @@
 import { AnyActorRef, assign, createActor, fromPromise, setup } from "xstate";
 
-const FURHATURI = "127.0.0.1:54321";
+const FURHATURI = "127.0.0.1:54321";    //192.168.1.11:54321 <--- this is the physical Furhat uri
 
 
 // *************************************************************************
 // FUNCTIONS ARE DEFINED HERE
 // *************************************************************************
 
-// Furhat'S listening function
+// Furhat's listening function
+// check if it's possible to add language as an argument, Furhat needs different listening functions for different languages
 
-async function fhListen() {
+async function fhListen(language: string) {
   const myHeaders = new Headers();
+  const encLang = encodeURIComponent(language)
   myHeaders.append("accept", "application/json");
-  return fetch(`http://${FURHATURI}/furhat/listen`, {
+  return fetch(`http://${FURHATURI}/furhat/listen?language=${encLang}`, {
     method: "GET",
     headers: myHeaders,
   })
@@ -34,6 +36,19 @@ async function fhSay(text: string) {
     headers: myHeaders,
     body: "",
   });
+}
+
+// Furhat voice changing function
+
+async function fhVoiceChange(voice: string) {
+  const myHeaders = new Headers();
+  myHeaders.append("accept", "application/json");
+  const encText = encodeURIComponent(voice); // This is not used in the fetch call
+  return fetch(`http://${FURHATURI}/furhat/voice?name=${voice}`, {
+    method: "POST",
+    headers: myHeaders,
+    body: "",
+  })
 }
 
 
@@ -96,7 +111,7 @@ const dmMachine = setup({
     context: MyDMContext;
   },
   guards: {
-  
+    skillLevelIsAdvanced: ({ context }) => { return context.skillLevel == "advanced"}   // will be applied in presenting of the scenarios, if advanced -> will be presented in targLang
   },
   actions: {
 
@@ -129,9 +144,23 @@ const dmMachine = setup({
       ])
     }),
 
-    fhListen: fromPromise<any, null>(async () => {
+    fhListenEnglish: fromPromise<any, null>(async () => {
       return Promise.all([
-       fhListen(),
+       fhListen("en-US"),
+       fhAttendToUser()
+      ])
+     }),
+
+     fhListenFrech: fromPromise<any, null>(async () => {
+      return Promise.all([
+       fhListen("fr-FR"),
+       fhAttendToUser()
+      ])
+     }),
+
+     fhChangeVoice: fromPromise<any, null>(async () => {
+      return Promise.all([
+       fhVoiceChange("Isabelle-Neural"),
        fhAttendToUser()
       ])
      }),
@@ -139,7 +168,7 @@ const dmMachine = setup({
 }).createMachine({
   context: 
     { 
-      messages: [{role: "user", content: "You are a spoken language instructor, and your task is to help a learner to practise their language of choice in real-life situations. In the next user prompt, you will find the information about the learner (the target language of their choice and their skill level on the European framework). Based on the information in the next user prompt, generate three situations (professional life, personal life, or every-day situation) for the user to choose from. Present the situations very briefly. Remember to adapt the level of difficulty accordinly."}],
+      messages: [{role: "user", content: "You are a spoken language instructor, and your task is to help a learner to practise their language of choice in real-life situations. In the next user prompt, you will find the information about the learner (the target language of their choice and their skill level). Based on the information in the next user prompt, generate three situations (professional life, personal life, or every-day situation) for the user to choose from. Present the situations very briefly. Remember to adapt the level of difficulty accordingly. If the user chooses advanced level, present the scenarios in the target language. If not, present the scenarios in English. At the very end, ask the user which situation they would like to choose."}],
       targetLang: "",
       skillLevel: "",
       situation : "",
@@ -171,7 +200,7 @@ const dmMachine = setup({
         LanguageChoiceStateSpeak: {
             invoke: {
               src: "fhSpeak",
-              input: { message : "Hi there! Which language?"}, //Hi there! I am Furhat the Language Instructor. I am here to help build your confidence in speaking a foreign language. With me you can safely practise a variety of real-life situations in your target language. I will be able to give you feedback and some tips. I will give you more instructions soon, but for now, let's start by you telling me which language you would like to practise.
+              input: { message : "Hi there! Which language would you like to practise?"}, //Hi there! I am Furhat the Language Instructor. I am here to help build your confidence in speaking a foreign language. With me you can safely practise a variety of real-life situations in your target language. I will be able to give you feedback and some tips. I will give you more instructions soon, but for now, let's start by you telling me which language you would like to practise.
               onDone: {
                 target: "LanguageChoiceStateListen"
               },
@@ -184,7 +213,7 @@ const dmMachine = setup({
       // LanguageChoice state listen - for user's choice of language and assigning that to context (targetLang)
       LanguageChoiceStateListen: {
         invoke: {
-          src: "fhListen",
+          src: "fhListenEnglish",
         onDone: {
           actions: [
             assign(({ event }) => {
@@ -204,7 +233,7 @@ const dmMachine = setup({
     SkillLevelStateSpeak: {
       invoke: {
         src: "fhSpeak",
-        input: { message : "Amazing! Now, what can you tell me about your skill level? On the European framework, which level would describe your skills the best? A1, B1 or C1?"},
+        input: { message : "Amazing! Now, what can you tell me about your skill level? Would you describe yourself as a beginner, intermediate or advanced learner?"},
         onDone: {
           target: "SkillLevelStateListen"
         },
@@ -217,7 +246,7 @@ const dmMachine = setup({
 // SkillLevelChoice state listen - for user's choice of skill level
 SkillLevelStateListen: {
   invoke: {
-    src: "fhListen",
+    src: "fhListenEnglish",
   onDone: {
     actions: [
       assign(({ event }) => {
@@ -245,38 +274,53 @@ SkillLevelStateListen: {
             src: "llm_generate", 
             input: ({context}) => ({prompt: context.messages}),
             onDone: {
-              target: "SituationChoiceStateSpeak",
               actions: [
                 //({ event }) => console.log(`This is event.output[0]${ JSON.stringify(event.output)}`),
                 //({ context }) => console.log(`This is typeof context.messages${typeof( context.messages)}`),
                 assign(({context, event }) => { return { messages: [ ...context.messages, { role: "assistant", content: event.output.message.content }]}}), // assign the LMM answer to the messages in the context
               ],
+              guard: "skillLevelIsAdvanced", target: "MatchTargetLangVoice"
             },
           },
         },
 
+        // if user's skill level is advanced, this state will be entered to present the scenarios in the target language (to add more challenge)
+        MatchTargetLangVoice: {
+          invoke: {
+            src: "fhChangeVoice",
+            onDone: {
+              target: "SituationChoiceStateSpeak",
+            },
+            onError: {
+              target: "noInput",
+            }
+          }
+        },
 
     // SituationChoice state speak - here the situations will get generated
     SituationChoiceStateSpeak: {
-      invoke: {
-        src: "fhSpeak",
-        input: ({ context }) => {
-          const lastMessage = context.messages[context.messages.length -1] 
-          return { message : lastMessage.content}
+      invoke: 
+        {
+          src: "fhSpeak",
+          input: ({ context }) => {
+            const lastMessage = context.messages[context.messages.length - 1];
+            return { message: lastMessage.content };
+          },
+          onDone: {
+            target: "SituationChoiceStateListen"
+          },
+          onError: {
+            target: "noInput"
+          }
         },
-        onDone: {
-          target: "SituationChoiceStateListen"
-        },
-        onError: {
-          target: "noInput"
-      }
-},
-},
+
+    },
+    
 
 // SituationChoice state listen - for user's choice of situation
 SituationChoiceStateListen: {
   invoke: {
-    src: "fhListen",
+    src: "fhListenEnglish",
   onDone: {
     actions: [
       assign(({ event }) => {
@@ -333,7 +377,7 @@ SituationChoiceStateListen: {
         // and assing it to the context
         Listen_user_input: {
           invoke: {
-            src: "fhListen",
+            src: "fhListenEnglish",
             onDone: {
               target: "Generate_LMM_answer",
               actions: [
