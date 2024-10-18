@@ -38,13 +38,14 @@ async function fhSay(text: string) {
   });
 }
 
-// Furhat voice changing function
+// Furhat voice changing function, needed to match user's choice of targLang
 
-async function fhVoiceChange(voice: string) {
+async function fhVoiceChange(language: string) {
+  const voice = mapLanguageToVoice(language);
   const myHeaders = new Headers();
   myHeaders.append("accept", "application/json");
   const encText = encodeURIComponent(voice); // This is not used in the fetch call
-  return fetch(`http://${FURHATURI}/furhat/voice?name=${voice}`, {
+  return fetch(`http://${FURHATURI}/furhat/voice?name=${encText}`, {
     method: "POST",
     headers: myHeaders,
     body: "",
@@ -80,12 +81,50 @@ async function fhAttendToUser() {
   });
 }
 
+// *************************************************************
+// other functions and consts are defined here
+// *************************************************************
+
 function insertLearnerInformation(context : any) {
   const targetLang = context.targetLang
   const skillLevel = context.skillLevel
   return targetLang + skillLevel 
 
 }
+
+function insertScenario(context : any) {
+  const scenario = context.situation
+  return scenario
+
+}
+
+// TO DO: SEE HOW TO MAKE THIS FUNCTION BETTER AND LESS REPETITIVE
+function mapLanguageToVoice(language: string) {
+  if (language === "spanish") {
+    return "Mia-Neural"
+  }
+  if (language === "turkish") {
+    return "Burcu-Neural"
+  }
+  if (language === "finnish" || language === "finish") {
+    return "Suvi-Neural"
+  }
+  if (language === "french") {
+    return "Isabelle-Neural"
+  }
+  if (language === "greek") {
+    return "AthinaNeural"
+  }
+  if (language === "german") {
+    return "KlausNeural"
+  }
+  if (language === "swedish") {
+    return "SofieNeural"
+  }
+}
+
+const languageoptions = "spanish, turkish, finnish, french, greek, german, and swedish"
+
 
 
 // ***************************************************************************
@@ -151,16 +190,16 @@ const dmMachine = setup({
       ])
      }),
 
-     fhListenFrech: fromPromise<any, null>(async () => {
+     fhListenTargetLang: fromPromise<any, {language: string}>(async ({input}) => {
       return Promise.all([
-       fhListen("fr-FR"),
+       fhListen(input.language),
        fhAttendToUser()
       ])
      }),
 
-     fhChangeVoice: fromPromise<any, null>(async () => {
+     fhChangeVoice: fromPromise<any, {language: string}>(async ({input}) => {
       return Promise.all([
-       fhVoiceChange("Isabelle-Neural"),
+       fhVoiceChange(input.language),
        fhAttendToUser()
       ])
      }),
@@ -168,7 +207,7 @@ const dmMachine = setup({
 }).createMachine({
   context: 
     { 
-      messages: [{role: "user", content: "You are a spoken language instructor, and your task is to help a learner to practise their language of choice in real-life situations. In the next user prompt, you will find the information about the learner (the target language of their choice and their skill level). Based on the information in the next user prompt, generate three situations (professional life, personal life, or every-day situation) for the user to choose from. Present the situations very briefly. Remember to adapt the level of difficulty accordingly. If the user chooses advanced level, present the scenarios in the target language. If not, present the scenarios in English. At the very end, ask the user which situation they would like to choose."}],
+      messages: [{role: "user", content: "You are a spoken language instructor, and your task is to help a learner practice their target language in real-life situations. In the next user prompt, you will find the information about the learner (the target language of their choice and their skill level). Here are some examples of how to generate scenarios based on the learner's skill level. Example 1: User Info: Target Language: Spanish Skill Level: Beginner. Generated Scenarios:  1. Professional life: Call your boss to tell him you are sick. 2. Personal life: Order a dish at a restaurant. 3. Introduce yourself to a new friend.        Example 2: User Info: Target Language: French Skill Level: Advanced. Generated Scenarios: 1. La vie professionelle: Décrivez votre dernière journée au travail.  2. La  vie personelle: Faites un petit discours lors de votre fête d'anniversaire. 3. La vie quotidienne: Vous rencontrez votre voisin dans le couloir et engagez une conversation sur l'état de votre immeuble, en discutant surtout les problèmes recents. Based on the target language and skill level information in the next user prompt, generate three situations adapted to the skill level (professional life, personal life, or every-day situation) for the user to choose from. Important: all of the generated scenarios must match the skill level the user has chosen. Present the scenarios as clearly and briefly as possible.**Important:**  If the user chooses advanced level, list the scenarios in the target language. If the user chooses beginner or intermediate, present the scenarios in English. At the end, ask the user which situation they would like to choose by saying the number of the scenario (1, 2, or 3). Remember: For advanced level: The user will choose the number in the target language. For beginner or intermediate level: The user will answer in English. Once the user has chosen the scenario, proceed to role-playing mode: say the first utterance as the other person in the scenario. For example, if the user chooses a scenario where they need to ask for help in the grocery store using the target language, you would play the role of the sales assistant and ask, 'What can I help you with?' in the target language. Let the user come up with the next utterance, and then proceed to respond to that and continue the interaction."}],
       targetLang: "",
       skillLevel: "",
       situation : "",
@@ -200,7 +239,7 @@ const dmMachine = setup({
         LanguageChoiceStateSpeak: {
             invoke: {
               src: "fhSpeak",
-              input: { message : "Hi there! Which language would you like to practise?"}, //Hi there! I am Furhat the Language Instructor. I am here to help build your confidence in speaking a foreign language. With me you can safely practise a variety of real-life situations in your target language. I will be able to give you feedback and some tips. I will give you more instructions soon, but for now, let's start by you telling me which language you would like to practise.
+              input: { message : `Hi there! Which language would you like to practise? With me, you can practice the following languages: ${languageoptions}`}, //Hi there! I am Furhat the Language Instructor. I am here to help build your confidence in speaking a foreign language. With me you can safely practise a variety of real-life situations in your target language. I will be able to give you feedback and some tips. I will give you more instructions soon, but for now, let's start by you telling me which language you would like to practise.
               onDone: {
                 target: "LanguageChoiceStateListen"
               },
@@ -253,7 +292,7 @@ SkillLevelStateListen: {
         return { skillLevel:  event.output[0] };
     }),
     ],
-    target: "Generate_LMM_answer"
+    target: "Generate_LMM_answer1"
   },
   onError: {
     target: "noInput"
@@ -263,7 +302,7 @@ SkillLevelStateListen: {
 
     // in Generate_LMM_answer-state, the LMM answer gets generated and assigned to the context
     // in this state, we provide the model with the first prompt from the user (this is already in context.messages)
-        Generate_LMM_answer: {
+        Generate_LMM_answer1: {
           entry: [
             assign(({ context }) => {
               const promptAndlearnerInfo = insertLearnerInformation(context);
@@ -273,14 +312,17 @@ SkillLevelStateListen: {
           invoke: {
             src: "llm_generate", 
             input: ({context}) => ({prompt: context.messages}),
-            onDone: {
-              actions: [
-                //({ event }) => console.log(`This is event.output[0]${ JSON.stringify(event.output)}`),
-                //({ context }) => console.log(`This is typeof context.messages${typeof( context.messages)}`),
+            onDone: [
+              // for checking if the user skill level is advanced:
+              {actions: 
                 assign(({context, event }) => { return { messages: [ ...context.messages, { role: "assistant", content: event.output.message.content }]}}), // assign the LMM answer to the messages in the context
+                guard: "skillLevelIsAdvanced", 
+                target: "MatchTargetLangVoice"},
+                // else:
+              {actions: 
+                  assign(({context, event }) => { return { messages: [ ...context.messages, { role: "assistant", content: event.output.message.content }]}}), // assign the LMM answer to the messages in the context
+                  target: "SituationChoiceStateSpeak"},
               ],
-              guard: "skillLevelIsAdvanced", target: "MatchTargetLangVoice"
-            },
           },
         },
 
@@ -288,6 +330,7 @@ SkillLevelStateListen: {
         MatchTargetLangVoice: {
           invoke: {
             src: "fhChangeVoice",
+            input: ({context}) => ({ language: context.targetLang }),
             onDone: {
               target: "SituationChoiceStateSpeak",
             },
@@ -297,7 +340,7 @@ SkillLevelStateListen: {
           }
         },
 
-    // SituationChoice state speak - here the situations will get generated
+    // SituationChoice state speak - here the situations will get spoken by Furhat
     SituationChoiceStateSpeak: {
       invoke: 
         {
@@ -306,18 +349,40 @@ SkillLevelStateListen: {
             const lastMessage = context.messages[context.messages.length - 1];
             return { message: lastMessage.content };
           },
-          onDone: {
-            target: "SituationChoiceStateListen"
-          },
+          onDone: [
+            {guard: "skillLevelIsAdvanced", target: "SituationChoiceStateListenInTargetLang"},
+            {target: "SituationChoiceStateListen"}
+          ],
           onError: {
             target: "noInput"
           }
         },
 
     },
+
+
+    // SituationChoice state listen - for user's choice of situation IN TARGET LANGUAGE (SINCE ADVANCED LEVEL)
+// user's choice of situation gets assigned to the context
+    SituationChoiceStateListenInTargetLang: {
+      invoke: {
+        src: "fhListenTargetLang",
+      onDone: {
+        actions: [
+          assign(({ event }) => {
+            return { situation:  event.output[0] };
+        }),
+        ],
+        target: "Generate_LMM_answer2"
+      },
+      onError: {
+        target: "noInput"
+      }
+    },
+    },
     
 
 // SituationChoice state listen - for user's choice of situation
+// user's choice of situation gets assigned to the context
 SituationChoiceStateListen: {
   invoke: {
     src: "fhListenEnglish",
@@ -327,7 +392,7 @@ SituationChoiceStateListen: {
         return { situation:  event.output[0] };
     }),
     ],
-    target: "Generate_LMM_answer"
+    target: "Generate_LMM_answer2"
   },
   onError: {
     target: "noInput"
@@ -335,29 +400,27 @@ SituationChoiceStateListen: {
 },
 },
 
-        // in Prompt, the LMM answer gets generated and assigned to the context
-        // in this state, we provide the model with the first prompt from the user (this is already in context.messages)
-        // Generate_LMM_answer: {
-        //   invoke: {
-        //     src: "llm_generate", 
-        //     input: ({context}) => ({prompt: context.messages}),
-        //     onDone: {
-        //       target: "Speak_LMM",
-        //       actions: [
-        //         assign(({context, event }) => { return { messages: [ ...context.messages, { role: "assistant", content: event.output.message.content }]}}), // attempting to assign the LMM answer to the messages in the context
-        //         //({ event }) => console.log(`This is the event output response--> ${event.output.response}`),
-        //         //({ context}) => console.log("Sending to API:", JSON.stringify({ model: "llama3.1", messages: context.messages })),
-        //         //({ context }) => console.log(`This is the context messages--> ${context.messages}`),
-        //         //({ event }) => console.log(`Full event output:`, event.output),
-        //         //({ context }) => console.log(`This is context.messages[context.messages.length-1].content --> ${context.messages[context.messages.length-1].content }`),
-        //       ],
-        //     },
-        //   },
-        // },
-
-        // in Speak_LMM_State, the LMM answer stored in context gets spoken by Furhat
-       
-        Speak_LMM: {
+    // in this state, the model produces an utterance suitable to the situation the user has chosen
+    Generate_LMM_answer2: {
+      entry: [
+        assign(({ context }) => {
+          const promptAndScenarioInfo = insertScenario(context);
+          return { messages : [ ... context.messages, { role: "user", content: promptAndScenarioInfo }]};  // adding information about user's choice of scenario in the context.messages
+        }),
+      ],
+      invoke: {
+        src: "llm_generate", 
+        input: ({context}) => ({prompt: context.messages}),
+        onDone: [
+          {actions: [
+            ({context }) => console.log(`This is context.messages latest message ${context.messages[context.messages.length-1]} `),
+              assign(({context, event }) => { return { messages: [ ...context.messages, { role: "assistant", content: event.output.message.content }]}})], // assign the LMM answer to the messages in the context
+              target: "Situation_speak"},
+          ],
+      },
+    },
+  // in Situation_speak, Furhat starts the scenario training (role play) based on the information from the context (targetlang, skill level and scenario)
+        Situation_speak: {
           invoke: {
             src: "fhSpeak",
             input: ({ context }) => {
@@ -377,9 +440,9 @@ SituationChoiceStateListen: {
         // and assing it to the context
         Listen_user_input: {
           invoke: {
-            src: "fhListenEnglish",
+            src: "fhListenTargetLang",
             onDone: {
-              target: "Generate_LMM_answer",
+              target: "Generate_LMM_answer3",
               actions: [
                  ({ event, context }) => {
                   const userMessage = event.output[0]; // Latest user message
@@ -393,6 +456,18 @@ SituationChoiceStateListen: {
               target: "noInput" 
             },
           }
+        },
+
+        Generate_LMM_answer3: {
+          invoke: {
+            src: "llm_generate", 
+            input: ({context}) => ({prompt: context.messages}),
+            onDone: [
+              {actions: 
+                  assign(({context, event }) => { return { messages: [ ...context.messages, { role: "assistant", content: event.output.message.content }]}}), // assign the LMM answer to the messages in the context
+                  target: "Situation_speak"},
+              ],
+          },
         },
         
 
@@ -438,3 +513,30 @@ actor.subscribe((snapshot) => {
 //     element.innerHTML = `${(meta as any).view}`;
 //   });
 // }
+
+
+
+//({ event }) => console.log(`This is event.output[0]${ JSON.stringify(event.output)}`),
+//({ context }) => console.log(`This is typeof context.messages${typeof( context.messages)}`),
+
+
+
+        // in Prompt, the LMM answer gets generated and assigned to the context
+        // in this state, we provide the model with the first prompt from the user (this is already in context.messages)
+        // Generate_LMM_answer: {
+        //   invoke: {
+        //     src: "llm_generate", 
+        //     input: ({context}) => ({prompt: context.messages}),
+        //     onDone: {
+        //       target: "Speak_LMM",
+        //       actions: [
+        //         assign(({context, event }) => { return { messages: [ ...context.messages, { role: "assistant", content: event.output.message.content }]}}), // attempting to assign the LMM answer to the messages in the context
+        //         //({ event }) => console.log(`This is the event output response--> ${event.output.response}`),
+        //         //({ context}) => console.log("Sending to API:", JSON.stringify({ model: "llama3.1", messages: context.messages })),
+        //         //({ context }) => console.log(`This is the context messages--> ${context.messages}`),
+        //         //({ event }) => console.log(`Full event output:`, event.output),
+        //         //({ context }) => console.log(`This is context.messages[context.messages.length-1].content --> ${context.messages[context.messages.length-1].content }`),
+        //       ],
+        //     },
+        //   },
+        // },
