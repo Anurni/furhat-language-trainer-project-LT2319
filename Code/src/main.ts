@@ -101,25 +101,25 @@ function insertScenario(context : any) {
 // TO DO: SEE HOW TO MAKE THIS FUNCTION BETTER AND LESS REPETITIVE
 function mapLanguageToVoice(language: string) {
   if (language === "spanish") {
-    return "Mia-Neural"
+    return ["Carlota-Neural", "es-MX"]
   }
   if (language === "turkish") {
-    return "Burcu-Neural"
+    return ["Burcu-Neural", "tr-TR"]
   }
   if (language === "finnish" || language === "finish") {
-    return "Suvi-Neural"
+    return ["Suvi-Neural", "fi-FI"]
   }
   if (language === "french") {
-    return "Isabelle-Neural"
+    return ["Isabelle-Neural", "fr-BE"]
   }
   if (language === "greek") {
-    return "AthinaNeural"
+    return ["AthinaNeural", "el-GR"]
   }
   if (language === "german") {
-    return "KlausNeural"
+    return ["KlausNeural", "de-DE"]
   }
   if (language === "swedish") {
-    return "SofieNeural"
+    return ["SofieNeural", "sv-SE"]
   }
 }
 
@@ -179,28 +179,28 @@ const dmMachine = setup({
     fhSpeak: fromPromise<any, {message: string}>(async ({input}) => {
       return Promise.all([
         fhSay(input.message),
-        fhAttendToUser(),
+        //fhAttendToUser(),
       ])
     }),
 
     fhListenEnglish: fromPromise<any, null>(async () => {
       return Promise.all([
        fhListen("en-US"),
-       fhAttendToUser()
+       //fhAttendToUser()
       ])
      }),
 
      fhListenTargetLang: fromPromise<any, {language: string}>(async ({input}) => {
       return Promise.all([
        fhListen(input.language),
-       fhAttendToUser()
+       //fhAttendToUser()
       ])
      }),
 
      fhChangeVoice: fromPromise<any, {language: string}>(async ({input}) => {
       return Promise.all([
        fhVoiceChange(input.language),
-       fhAttendToUser()
+       //fhAttendToUser()
       ])
      }),
   },
@@ -209,6 +209,8 @@ const dmMachine = setup({
     { 
       messages: [{role: "user", content: "You are a spoken language instructor, and your task is to help a learner practice their target language in real-life situations. In the next user prompt, you will find the information about the learner (their target language of choice and skill level). Based on this information, you will generate three scenarios, adapted to the skill level (professional life, personal life, or everyday situation), for the learner to choose from. Important: When generating the scenarios, do not give any suggestions on what the user should say or how they should phrase their responses. Your job is only to describe the situation. Once the user selects a scenario, you will act only as the other person in the conversation (e.g., a waiter, colleague, or shop assistant) and wait for the learner to speak. You will only respond to the learner’s utterances in the context of the chosen scenario. For example, if the scenario is about ordering food in a restaurant, you will play the role of the waiter and say something like 'What would you like to order?' in the target language. Wait for the user to respond and then continue the conversation naturally based on the user's input. Do not provide suggestions or examples of what the user might say. Remember: Your task is to engage in a role-play, not to guide the user in what they should say."}],
       targetLang: "",
+      languageCode: "",
+      targetVoice: "",
       skillLevel: "",
       situation : "",
     },
@@ -253,15 +255,92 @@ const dmMachine = setup({
       LanguageChoiceStateListen: {
         invoke: {
           src: "fhListenEnglish",
-        onDone: {
+        onDone: [
+          { // SPANISH?
+          guard: ({event}) => event.output[0].contains("spanish"),  
           actions: [
-            assign(({ event }) => {
-              return { targetLang: event.output[0] };
+            assign(({ context }) => {
+              return { targetLang: "Spanish", targetVoice: "Carlota-Neural", languageCode: "es-MX" };
           }),
-          ({context}) => console.log(`This is context target Lang ${context.targetLang}`)
+          // just logging some stuff...
+          ({context}) => console.log(`This is context target Lang ${context.targetLang}`),
+          ({context}) => console.log(`This is context target Voice ${context.targetVoice}`),
+          ({context}) => console.log(`This is context Language Code ${context.languageCode}`)
           ],
-          target: "SkillLevelStateSpeak"
-        },
+          target: "SkillLevelStateSpeak"},
+          { // TURKISH?
+          guard: ({event}) => event.output[0].contains("turkish"),  
+          actions: [
+            assign(({ context }) => {
+              return { targetLang: "Turkish", targetVoice: "Burcu-Neural", languageCode: "tr-TR" };
+            }),
+          // just logging some stuff...
+          ({context}) => console.log(`This is context target Lang ${context.targetLang}`),
+          ({context}) => console.log(`This is context target Voice ${context.targetVoice}`),
+          ({context}) => console.log(`This is context Language Code ${context.languageCode}`)
+          ],
+          target: "SkillLevelStateSpeak"},
+          { // FINNISH?
+            guard: ({event}) => event.output[0].contains(["finnish", "finish"]),  
+            actions: [
+            assign(({ context }) => {
+              return { targetLang: "Finnish", targetVoice: "Suvi-Neural", languageCode: "fi-FI" };
+            }),
+            // just logging some stuff...
+          ({context}) => console.log(`This is context target Lang ${context.targetLang}`),
+          ({context}) => console.log(`This is context target Voice ${context.targetVoice}`),
+          ({context}) => console.log(`This is context Language Code ${context.languageCode}`)
+             ],
+            target: "SkillLevelStateSpeak"},
+            { // FRENCH?
+            guard: ({event}) => event.output[0].contains("french"),  
+            actions: [
+              assign(({ context }) => {
+              return { targetLang: "French", targetVoice: "Isabelle-Neural", languageCode: "fr-BE" };
+              }),
+            // just logging some stuff...
+          ({context}) => console.log(`This is context target Lang ${context.targetLang}`),
+          ({context}) => console.log(`This is context target Voice ${context.targetVoice}`),
+          ({context}) => console.log(`This is context Language Code ${context.languageCode}`)
+              ],
+            target: "SkillLevelStateSpeak"},
+            { // GREEK?
+              guard: ({event}) => event.output[0].contains("greek"),  
+              actions: [
+                assign(({ context }) => {
+                  return { targetLang: "Greek", targetVoice: "AthinaNeural", languageCode: "el-GR" };
+              }),
+            // just logging some stuff...
+          ({context}) => console.log(`This is context target Lang ${context.targetLang}`),
+          ({context}) => console.log(`This is context target Voice ${context.targetVoice}`),
+          ({context}) => console.log(`This is context Language Code ${context.languageCode}`)
+              ],
+              target: "SkillLevelStateSpeak"},
+              { // GERMAN?
+              guard: ({event}) => event.output[0].contains("german"),  
+              actions: [
+              assign(({ context }) => {
+                return { targetLang: "Turkish", targetVoice: "KlausNeural", languageCode: "de-DE" };
+              }),
+          // just logging some stuff...
+          ({context}) => console.log(`This is context target Lang ${context.targetLang}`),
+          ({context}) => console.log(`This is context target Voice ${context.targetVoice}`),
+          ({context}) => console.log(`This is context Language Code ${context.languageCode}`)
+              ],
+                target: "SkillLevelStateSpeak"},
+              { // SWEDISH?
+              guard: ({event}) => event.output[0].contains("swedish"),  
+              actions: [
+              assign(({ context }) => {
+              return { targetLang: "Swedish", targetVoice: "SofieNeural", languageCode: "sv-SE" };
+              }),
+              // just logging some stuff...
+          ({context}) => console.log(`This is context target Lang ${context.targetLang}`),
+          ({context}) => console.log(`This is context target Voice ${context.targetVoice}`),
+          ({context}) => console.log(`This is context Language Code ${context.languageCode}`)
+              ],
+              target: "SkillLevelStateSpeak"}
+        ],
         onError: {
           target: "noInput"
         }
@@ -366,6 +445,7 @@ SkillLevelStateListen: {
     SituationChoiceStateListenInTargetLang: {
       invoke: {
         src: "fhListenTargetLang",
+      // TO DO: ADD INPUT HERE !!!!
       onDone: {
         actions: [
           assign(({ event }) => {
