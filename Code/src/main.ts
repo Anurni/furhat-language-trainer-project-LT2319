@@ -51,14 +51,28 @@ async function fhVoiceChange(voice: string) {
   })
 }
 
+// furhat character changing function
+
+async function fhChangeCharacter(character: string) {
+  const myHeaders = new Headers();
+  myHeaders.append("accept", "application/json");
+  const encText = encodeURIComponent(character);
+  return fetch(`http://${FURHATURI}/furhat/face?mask=adult&character=${encText}`, {  
+    method: "POST",
+    headers: myHeaders,
+    body: "",
+  });
+}
+
 
 // Function for retrieving ready - made gestures from Furhat
 
-async function fhGesture(text: string) {
+async function fhGesture(gesture: string) {
   const myHeaders = new Headers();
   myHeaders.append("accept", "application/json");
+  const encText = encodeURIComponent(gesture);
   return fetch(
-    `http://${FURHATURI}/furhat/gesture?name=${text}&blocking=true`,
+    `http://${FURHATURI}/furhat/gesture?name=${encText}&blocking=true`,
     {
       method: "POST",
       headers: myHeaders,
@@ -106,63 +120,36 @@ function insertLearnerInformation(context : any) {
 }
 
 const beginner_professionallife = {
-  1: "Introducing Yourself in a Meeting",
-  2: "Asking a Colleague for Help on a Project",
-  3: "Participating in a Team Discussion",
-  4: "Describing Your Job Responsibilities",
-  5: "Giving a Brief Update on Your Work",
-  6: "Making Small Talk at the Office",
-  7: "Asking About Company Policies",
-  8: "Talking About Your Career Aspirations",
-  9: "Responding to a Simple Work Email",
-  10: "Scheduling a Meeting with a Supervisor",
-  11: "Discussing Your Work Hours"
+  1: "introducing yourself on your first day to a colleague",
+  2: "asking your colleague for a help on a task",
+  3: "asking your colleague about their weekend plans",
+  4: "asking your colleague out for lunch",
 };
 
 const beginner_everydaylife = {
-  1: "Ordering Coffee at a Café",
-  2: "Talking About Your Family",
-  3: "Describing Your Favorite Movie",
-  4: "Talking About Your Weekend Plans",
-  5: "Asking Someone About Their Favorite Food",
-  6: "Describing Your Daily Routine",
-  7: "Talking About Your Favorite Books",
-  8: "Discussing Hobbies with Friends",
-  9: "Giving Directions to a Tourist",
-  10: "Planning a Day Out with Friends",
-  11: "Discussing Pets"
+  1: "ordering a coffee at a coffee house",
+  2: "talking about your family to a friend",
+  3: "discussing your weekend plans",
+  5: "asking someone about their favourite food",
+  6: "asking for directions out downtown",
 };
 
 const advanced_professionallife = {
-  1: "Leading a Team Meeting",
-  2: "Negotiating Terms in a Contract",
-  3: "Delivering a Presentation on a New Project",
-  4: "Participating in a Professional Conference",
-  5: "Conducting a Performance Review",
-  6: "Collaborating on a Cross-Department Project",
-  7: "Developing a Strategic Plan for Your Team",
-  8: "Discussing Market Trends with Clients",
-  9: "Managing a Difficult Conversation with a Colleague",
-  10: "Presenting Data to Stakeholders",
-  11: "Evaluating Team Performance"
+  1: "introducing a professional idea to your boss",
+  2: "asking your boss for a raise",
+  3: "asking your teammate about project timeline and deadlines",
+  4: "introducing yourself and your background in an international conference",
 };
 
 const advanced_everydaylife = {
-  1: "Discussing Political Opinions with Friends",
-  2: "Explaining Your Views on Social Issues",
-  3: "Giving a Detailed Description of Your Travels",
-  4: "Discussing Art and Literature",
-  5: "Debating Ethical Dilemmas",
-  6: "Participating in a Book Club Discussion",
-  7: "Engaging in Deep Conversations About Life Goals",
-  8: "Talking About Environmental Issues",
-  9: "Explaining Your Favorite Recipes",
-  10: "Discussing Your Views on Technology",
-  11: "Reflecting on Personal Experiences"
+  1: "calling the doctors to reshedule your appointment",
+  2: "calling a car rental to discuss the mistaken bill you received",
+  3: "ask for book recommendations from a librarian at the library",
+  4: "debate about a topic with your friend",
 };
 
 
-const languageoptions = "spanish, turkish, finnish, french, greek, german, and swedish"
+const languageoptions = "spanish, turkish, french, greek, and swedish"
 
 
 function getRandomScenario(scenarios: object) {
@@ -172,6 +159,7 @@ function getRandomScenario(scenarios: object) {
   return scenarios[randomKey]; 
 }
 
+const furhatGestures = ["Oh", "Smile", "Wink", "BigSmile", "Blink", "BrowRaise", "Thoughtful", "OpenEyes"]
 
 
 // ***************************************************************************
@@ -186,6 +174,8 @@ interface MyDMContext extends DMContext {
   skillLevel: string;
   scenarioType: string;
   situation: string;
+  character: string;
+  utteranceGesture: string;
 }
 interface DMContext {
   //count: number;
@@ -226,44 +216,69 @@ const dmMachine = setup({
       }).then((response) => response.json());
     }),
 
+    llm_generate2: fromPromise<any, {prompt: string}>(async ({ input }) => {
+      const body = {
+        model: "mistral",
+        stream: false,
+        messages: input.prompt,
+        temperature: 0.5
+      };
+      console.log(`This is the body--> ${JSON.stringify(body)}`)
+      return fetch("http://localhost:11434/api/chat", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }).then((response) => response.json());
+    }),
+
+    fhSpeakWGesture: fromPromise<any, {message: string, gesture: string}>(async ({input}) => {
+      return Promise.all([
+        fhSay(input.message),
+        fhGesture(input.gesture),
+        fhAttendToUser(),
+      ])
+    }),
+
     fhSpeak: fromPromise<any, {message: string}>(async ({input}) => {
       return Promise.all([
         fhSay(input.message),
-        //fhAttendToUser(),
+        fhAttendToUser(),
       ])
     }),
+
 
     fhListenEnglish: fromPromise<any, null>(async () => {
       return Promise.all([
        fhListen("en-US"),
-       //fhAttendToUser()
+       fhAttendToUser()
       ])
      }),
 
      fhListenTargetLang: fromPromise<any, {language: string}>(async ({input}) => {
       return Promise.all([
        fhListen(input.language),
-       //fhAttendToUser()
+       fhAttendToUser()
       ])
      }),
 
-     fhChangeVoice: fromPromise<any, {voice: string}>(async ({input}) => {
+     fhChangeVoice: fromPromise<any, {voice: string, character: string}>(async ({input}) => {
       return Promise.all([
        fhVoiceChange(input.voice),
-       //fhAttendToUser()
+      fhChangeCharacter(input.character)
       ])
      }),
   },
 }).createMachine({
   context: 
     { 
-      messages: [{role: "user", content: "You are a spoken language instructor, and your task is to help a learner practice their target language in real-life situations. You will act as the other person in the conversation (e.g., a waiter, colleague, or shop assistant)"}],
+      messages: [{role: "user", content: "You are a spoken language instructor, and your task is to help a learner practice their target language in real-life situations. You will act as the other person in the scenario-role play (for example a waiter, colleague, or shop assistant)"}],
       targetLang: "",
       languageCode: "",
       targetVoice: "",
       skillLevel: "",
       scenarioType: "",
       situation : "",
+      character : "",
+      utteranceGesture: "",
     },
   id: "DM",
   initial: "GetModels",
@@ -274,7 +289,7 @@ const dmMachine = setup({
             src: "get_ollama_models",
             input: null, 
             onDone: {
-              target: "LanguageChoiceStateSpeak",
+              target: "SetLangToEnglish",
               actions: assign(({ event }) => {
                 console.log(`This is the event.output.models--> ${event.output.models}`);
                 return {
@@ -288,11 +303,27 @@ const dmMachine = setup({
           },
         },
 
+    // set English as the 'default' language in the beginning
+    // also Furhat's default mask (James) is set
+    SetLangToEnglish: {
+      invoke: [{
+        src: "fhChangeVoice",
+        input: { voice : "Matthew-Neural", character: "James"}, 
+        onDone: {
+          target: "LanguageChoiceStateSpeak"
+        },
+        onError: {
+          target: "noInput"
+      }
+  }
+
+],
+},
     // LanguageChoice state speak - here the user will choose their target language 
         LanguageChoiceStateSpeak: {
             invoke: {
-              src: "fhSpeak",
-              input: { message : `Hi there! I'm Furhat the language instructor. Which language would you like to practise? With me, you can practice the following languages: ${languageoptions}`}, //Hi there! I am Furhat the Language Instructor. I am here to help build your confidence in speaking a foreign language. With me you can safely practise a variety of real-life situations in your target language. I will be able to give you feedback and some tips. I will give you more instructions soon, but for now, let's start by you telling me which language you would like to practise.
+              src: "fhSpeakWGesture",
+              input: { message : `Hi there! I'm Furhat the language instructor. Which language would you like to practise? With me, you can practice the following languages: ${languageoptions}. Once we've got started on the scenario role-play, you can interrupt it by saying the word "stop".`, gesture: "Smile"}, //Hi there! I am Furhat the Language Instructor. I am here to help build your confidence in speaking a foreign language. With me you can safely practise a variety of real-life situations in your target language. I will be able to give you feedback and some tips. I will give you more instructions soon, but for now, let's start by you telling me which language you would like to practise.
               onDone: {
                 target: "LanguageChoiceStateListen"
               },
@@ -313,7 +344,7 @@ const dmMachine = setup({
           guard: ({event}) => event.output[0].includes("spanish"),  
           actions: [
             assign(({ context }) => {
-              return { targetLang: "Spanish", targetVoice: "Carlota-Neural", languageCode: "es-MX" };
+              return { targetLang: "Spanish", targetVoice: "Carlota-Neural", languageCode: "es-MX", character: "Omar" };
           }),
           // just logging some stuff...
           ({context}) => console.log(`This is context target Lang ${context.targetLang}`),
@@ -325,7 +356,7 @@ const dmMachine = setup({
           guard: ({event}) => event.output[0].includes("turkish"),  
           actions: [
             assign(({ context }) => {
-              return { targetLang: "Turkish", targetVoice: "Burcu-Neural", languageCode: "tr-TR" };
+              return { targetLang: "Turkish", targetVoice: "Burcu-Neural", languageCode: "tr-TR", character: "Fedora" };
             }),
           // just logging some stuff...
           ({context}) => console.log(`This is context target Lang ${context.targetLang}`),
@@ -333,23 +364,11 @@ const dmMachine = setup({
           ({context}) => console.log(`This is context Language Code ${context.languageCode}`)
           ],
           target: "SkillLevelStateSpeak"},
-          { // FINNISH?
-            guard: ({event}) => event.output[0].includes("finish"),  
-            actions: [
-            assign(({ context }) => {
-              return { targetLang: "Finnish", targetVoice: "Suvi-Neural", languageCode: "fi-FI" };
-            }),
-            // just logging some stuff...
-          ({context}) => console.log(`This is context target Lang ${context.targetLang}`),
-          ({context}) => console.log(`This is context target Voice ${context.targetVoice}`),
-          ({context}) => console.log(`This is context Language Code ${context.languageCode}`)
-             ],
-            target: "SkillLevelStateSpeak"},
             { // FRENCH?
             guard: ({event}) => event.output[0].includes("french"),  
             actions: [
               assign(({ context }) => {
-              return { targetLang: "French", targetVoice: "Isabelle-Neural", languageCode: "fr-BE" };
+              return { targetLang: "French", targetVoice: "Isabelle-Neural", languageCode: "fr-BE", character: "Isabel" };
               }),
             // just logging some stuff...
           ({context}) => console.log(`This is context target Lang ${context.targetLang}`),
@@ -361,7 +380,7 @@ const dmMachine = setup({
               guard: ({event}) => event.output[0].includes("greek"),  
               actions: [
                 assign(({ context }) => {
-                  return { targetLang: "Greek", targetVoice: "AthinaNeural", languageCode: "el-GR" };
+                  return { targetLang: "Greek", targetVoice: "AthinaNeural", languageCode: "el-GR", character: "Patricia" };
               }),
             // just logging some stuff...
           ({context}) => console.log(`This is context target Lang ${context.targetLang}`),
@@ -369,23 +388,11 @@ const dmMachine = setup({
           ({context}) => console.log(`This is context Language Code ${context.languageCode}`)
               ],
               target: "SkillLevelStateSpeak"},
-              { // GERMAN?
-              guard: ({event}) => event.output[0].includes("german"),  
-              actions: [
-              assign(({ context }) => {
-                return { targetLang: "Turkish", targetVoice: "KlausNeural", languageCode: "de-DE" };
-              }),
-          // just logging some stuff...
-          ({context}) => console.log(`This is context target Lang ${context.targetLang}`),
-          ({context}) => console.log(`This is context target Voice ${context.targetVoice}`),
-          ({context}) => console.log(`This is context Language Code ${context.languageCode}`)
-              ],
-                target: "SkillLevelStateSpeak"},
               { // SWEDISH?
               guard: ({event}) => event.output[0].includes("swedish"),  
               actions: [
               assign(({ context }) => {
-              return { targetLang: "Swedish", targetVoice: "SofieNeural", languageCode: "sv-SE" };
+              return { targetLang: "Swedish", targetVoice: "SofieNeural", languageCode: "sv-SE", character: "Isabel" };
               }),
               // just logging some stuff...
           ({context}) => console.log(`This is context target Lang ${context.targetLang}`),
@@ -410,8 +417,8 @@ const dmMachine = setup({
     // SkillLevel state speak - here the user will choose their skill level
     SkillLevelStateSpeak: {
       invoke: {
-        src: "fhSpeak",
-        input: { message : "Amazing! Now, what can you tell me about your skill level? Would you describe yourself as more of a beginner or advanced learner? After your answer, you need to gimme a second to think."},
+        src: "fhSpeakWGesture",
+        input: { message : "Amazing! Now, what can you tell me about your skill level? Would you describe yourself as more of a beginner or advanced learner?", gesture: "BrowRaise"},
         onDone: {
           target: "SkillLevelStateListen"
         },
@@ -456,8 +463,8 @@ SkillLevelStateListen: {
     // ScenarioTypeStateSpeak - here the user is asked if they would like to practise a professional setting or every-day setting
     ScenarioTypeStateSpeak: {
       invoke: {
-        src: "fhSpeak",
-        input: { message : `Would you like to practise your speaking skills in a professional setting or with some every-day themes instead?`}, 
+        src: "fhSpeakWGesture",
+        input: { message : `Would you like to practise your speaking skills in a professional setting or with some every-day themes instead?`, gesture: "OpenEyes"}, 
         onDone: {
           target: "ScenarioTypeStateListen"
         },
@@ -499,7 +506,7 @@ SkillLevelStateListen: {
           entry: [
             assign(({ context }) => {
               const promptAndlearnerInfo = insertLearnerInformation(context);
-              return { messages : [ ... context.messages, { role: "user", content: `Here is information about the user and the scenario you will role play : ${promptAndlearnerInfo}. Present the scenario to the user in the next turn  BRIEFLY IN ENGLISH. DO NOT START SUGGESTING WHAT THE USER COULD SAY IN THAT SCENARIO. Then, ask the user if they would like to start the role-playing. Ask the user to answer yes or no.` }]};  // adding another user prompt in the context (messages holds all prompts and model's answers), contains target Lang and skill level
+              return { messages : [ ... context.messages, { role: "user", content: `Here is information about the user and the scenario you will role play : ${promptAndlearnerInfo}. PRESENT THE SCENARIO TO THE USER IN THE NEXT TURN BRIEFLY IN ENGLISH. DO NOT PRESENT THE SCENARIO IN THE TARGET LANGUAGE. DO NOT START SUGGESTING WHAT THE USER COULD SAY IN THAT SCENARIO. Then, ask the user if they would like to start the role-playing. Ask the user to answer yes or no.` }]};  // adding another user prompt in the context (messages holds all prompts and model's answers), contains target Lang and skill level
             }),
           ],
           invoke: {
@@ -554,7 +561,7 @@ SkillLevelStateListen: {
     Generate_LMM_answer2: {
       entry: [
         assign(({ context }) => {
-          return { messages : [ ... context.messages, { role: "user", content: `According to the previous information you have received, start now the role of the other person in the chosen scenario. DO NOT GENERATE THE USER'S UTTERANCES OR GIVE THE USER ANY SUGGESTIONS. Instead, wait for the learner to speak and respond accordingly. For example, if the scenario is about ordering food in a restaurant, you will play the role of the waiter and say something like 'Hello, what would you like to order?' in the target language. Wait for the user to respond and then continue the conversation naturally based on the user's input. DO NOT PROVIDE SUGGESTIONS ON WHAT THE USER MIGHT SAY. Remember: Your task is to engage in a ROLE-PLAY, not to guide the user in what they should say`}]};  // adding information about user's choice of scenario in the context.messages
+          return { messages : [ ... context.messages, { role: "user", content: `According to the previous information you have received, start now the role of the other person in the chosen scenario. DO NOT GENERATE THE USER'S UTTERANCES OR GIVE THE USER ANY SUGGESTIONS. Instead, wait for the learner to speak and respond accordingly. For example, if the scenario is about ordering food in a restaurant, you will play the role of the waiter and say something like 'Hello, what would you like to order?' in the target language. ONLY SPEAK IN THE TARGET LANGUAGE. DO NOT TRANSLATE ANY OF THE UTTERANCES IN ENGLISH Wait for the user to respond and then continue the conversation naturally based on the user's input. DO NOT PROVIDE SUGGESTIONS ON WHAT THE USER MIGHT SAY. Remember: Your task is to engage in a ROLE-PLAY, not to guide the user in what they should say`}]};  // adding information about user's choice of scenario in the context.messages
         }),
       ],
       invoke: {
@@ -569,27 +576,26 @@ SkillLevelStateListen: {
       },
     },
 
+    // here, furhat changes "character" and voice to match the target language
     MatchTargetLangVoice: {
-          invoke: {
+          invoke:
+          {
             src: "fhChangeVoice",
-            input: ({context}) => ({ voice: context.targetVoice }),
+            input: ({context}) => ({ voice: context.targetVoice, character: context.character }),
             onDone: {
               target: "Situation_speak",
             },
             onError: {
               target: "noInput",
             }
-          },
+          }
         },
 
   // in Situation_speak, Furhat starts the scenario training (role play) based on the information from the context (targetlang, skill level and scenario)
         Situation_speak: {
           invoke: {
-            src: "fhSpeak",
-            input: ({ context }) => {
-              const lastMessage = context.messages[context.messages.length -1] 
-              return { message : lastMessage.content}
-            },
+            src: "fhSpeakWGesture",
+            input: ({ context }) => ({ message : context.messages[context.messages.length -1].content, gesture: context.utteranceGesture}),
             onDone: {
               target: "Listen_user_input"
             },
@@ -604,8 +610,24 @@ SkillLevelStateListen: {
         Listen_user_input: {
           invoke: {
             src: "fhListenTargetLang",
-            intput: ({ context }) => ({language: context.languageCode}),
-            onDone: {
+            input: ({ context }) => ({language: context.languageCode}),
+            onDone: [
+
+              {
+                guard: ({ event }) => event.output[0].includes("stop"),
+                actions: [
+                  ({ event, context }) => {
+                   const userMessage = event.output[0]; // Latest user message
+                   const responseObject = event.output[1]; // Response object
+                   console.log(`This is the userMessage ${userMessage}`)
+                   console.log(`This is the responseObject ${responseObject}`)},
+                   assign(({ context, event}) => { return { messages: [ ...context.messages, { role: "user", content: "The user wishes to end the conversation. Provide the user now with some feedback about the scenario role-play and their performance. Then, say goodbye"}]}})
+               ],
+               target: "GenerateFeedBack",
+                
+              },
+              
+              {   // generating an answer
               target: "Generate_LMM_answer3",
               actions: [
                  ({ event, context }) => {
@@ -615,7 +637,8 @@ SkillLevelStateListen: {
                   console.log(`This is the responseObject ${responseObject}`)},
                   assign(({ context, event}) => { return { messages: [ ...context.messages, { role: "user", content: event.output[0]}]}})
               ]
-            },
+            }
+          ],
             onError: { 
               target: "noInput" 
             },
@@ -629,9 +652,34 @@ SkillLevelStateListen: {
             onDone: [
               {actions: 
                   assign(({context, event }) => { return { messages: [ ...context.messages, { role: "assistant", content: event.output.message.content }]}}), // assign the LMM answer to the messages in the context
-                  target: "Situation_speak"},
+                  target: "GenerateSuitableGesture"},
               ],
           },
+        },
+        
+
+        GenerateSuitableGesture: {
+          invoke: {
+            src: "llm_generate2",
+            input: ({ context }) => {
+              const lastMessage = context.messages[context.messages.length - 1];
+              return { 
+                prompt: `Choose one of these gestures: ${furhatGestures} that is suitable with this utterance: ${lastMessage.content}. ONLY GENERATE THE NAME OF THE GESTURE YOU'VE CHOSEN EXACTLY AS IT WAS WRITTEN.` 
+              };
+            },
+            onDone: [
+              {actions:
+                assign(({ context,event }) => { return { utteranceGesture: event.output.message.content}}),
+                target: "Situation_speak"
+              }
+             // actions: [
+             //   ({ event }) => console.log(event.output.message.content),
+             //   assign(({ event}) => { return { utteranceGesture: event.output.message.content }; 
+             //   })
+             // ],
+             // target: "Situation_speak"
+            ]
+          }
         },
         
 
@@ -647,6 +695,32 @@ SkillLevelStateListen: {
           }
       }
   },
+
+    // generating the end for the role-play
+    // model generates the 'feedback'
+    GenerateFeedBack: {
+      invoke: {
+        src: "llm_generate", 
+        input: ({context}) => ({prompt: context.messages}),
+        onDone: [
+          {actions: 
+              assign(({context, event }) => { return { messages: [ ...context.messages, { role: "assistant", content: event.output.message.content }]}}), // assign the LMM answer to the messages in the context
+              target: "FinalState"},
+          ],
+      },
+    },
+
+
+    // last state where feedback will be provided and listen-speak loop broken
+      FinalState: {
+        invoke: {
+            src: "fhSpeak",
+            input: ({ context }) => {
+              const lastMessage = context.messages[context.messages.length -1] 
+              return { message : lastMessage.content}
+            },
+        },
+      }
 },
 });
 
