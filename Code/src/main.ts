@@ -38,6 +38,19 @@ async function fhSay(text: string) {
   });
 }
 
+// audio producing function
+async function fhAudioSound(url: string) {
+  const myHeaders = new Headers();
+  myHeaders.append("accept", "application/json");
+  const encURL = encodeURIComponent(url);
+  
+  return fetch(`http://${FURHATURI}/furhat/say?url=${encURL}&blocking=true`, {
+    method: "POST",
+    headers: myHeaders,
+    body: "",
+  });
+}
+
 // Furhat voice changing function, needed to match user's choice of targLang
 
 async function fhVoiceChange(voice: string) {
@@ -106,7 +119,7 @@ async function fhAttendToUser() {
   return fetch(`http://${FURHATURI}/furhat/attend?user=CLOSEST`, {
     method: "POST",
     headers: myHeaders,
-    body: JSON.stringify({ // not sure if this part is needed?
+    body: JSON.stringify({ 
       enum: "CLOSEST",
     }),
   });
@@ -145,7 +158,7 @@ const beginner_professionallife = {
 };
 
 const beginner_everydaylife = {
-  1: "ordering a coffee at a coffee house",
+  1: "ordering a coffee at a café",
   2: "talking about your family to a friend",
   3: "discussing your weekend plans",
   4: "asking someone about their favourite food",
@@ -164,11 +177,11 @@ const advanced_everydaylife = {
   1: "calling the doctors to reshedule your appointment",
   2: "calling a car rental to discuss the mistaken bill you received",
   3: "ask for book recommendations from a librarian at the library",
-  4: "debate about a topic with your friend",
+  4: "debate about a controversial topic with your friend",
 };
 
 
-const languageoptions = "spanish, turkish, french, greek, and swedish"
+const languageoptions = "spanish, french, greek, and swedish"
 
 
 function getRandomScenario(scenarios: object) {
@@ -269,7 +282,7 @@ const dmMachine = setup({
       return Promise.all([
        fhListen("en-US"),
        fhAttendToUser(),
-       fhLed(150,20,100)
+       fhLed(50,20,200)
       ])
      }),
 
@@ -277,7 +290,7 @@ const dmMachine = setup({
       return Promise.all([
        fhListen(input.language),
        fhAttendToUser(),
-       fhLed(150,20,100)
+       fhLed(50,20,200)
       ])
      }),
 
@@ -287,6 +300,12 @@ const dmMachine = setup({
       fhChangeCharacter(input.character)
       ])
      }),
+
+     fhApplaud: fromPromise<any,{url: string}>(async ({input}) => {
+      return Promise.all([
+        fhAudioSound("https://raw.githubusercontent.com/Anurni/furhat-language-trainer-project-LT2319/main/applause-75314.wav")
+      ])
+     })
   },
 }).createMachine({
   context: 
@@ -373,18 +392,18 @@ const dmMachine = setup({
           ({context}) => console.log(`This is context Language Code ${context.languageCode}`)
           ],
           target: "SkillLevelStateSpeak"},
-          { // TURKISH?
-          guard: ({event}) => event.output[0].includes("turkish"),  
-          actions: [
-            assign(({ context }) => {
-              return { targetLang: "Turkish", targetVoice: "Burcu-Neural", languageCode: "tr-TR", character: "Fedora" };
-            }),
-          // just logging some stuff...
-          ({context}) => console.log(`This is context target Lang ${context.targetLang}`),
-          ({context}) => console.log(`This is context target Voice ${context.targetVoice}`),
-          ({context}) => console.log(`This is context Language Code ${context.languageCode}`)
-          ],
-          target: "SkillLevelStateSpeak"},
+          // { // TURKISH?
+          // guard: ({event}) => event.output[0].includes("turkish"),  
+          // actions: [
+          //   assign(({ context }) => {
+          //     return { targetLang: "Turkish", targetVoice: "Burcu-Neural", languageCode: "tr-TR", character: "Fedora" };
+          //   }),
+          // // just logging some stuff...
+          // ({context}) => console.log(`This is context target Lang ${context.targetLang}`),
+          // ({context}) => console.log(`This is context target Voice ${context.targetVoice}`),
+          // ({context}) => console.log(`This is context Language Code ${context.languageCode}`)
+          // ],
+          // target: "SkillLevelStateSpeak"},
             { // FRENCH?
             guard: ({event}) => event.output[0].includes("french"),  
             actions: [
@@ -747,9 +766,16 @@ SkillLevelStateListen: {
           invoke: {
             src: "fhChangeVoice",
             input: { voice : "Matthew-Neural", character: "James"},
-            onDone: "Finalspeak"
+            onDone: "ApplaudState"
         },
         
+      },
+
+      ApplaudState: {
+          invoke: {
+            src: "fhApplaud",
+            onDone: "Finalspeak"
+          }
       },
 
         Finalspeak: {
