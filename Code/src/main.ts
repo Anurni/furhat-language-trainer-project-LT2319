@@ -181,7 +181,7 @@ const advanced_everydaylife = {
 };
 
 
-const languageoptions = "spanish, french, greek, and swedish"
+const languageoptions = "spanish, french, turkish, greek, and swedish"
 
 
 function getRandomScenario(scenarios: object) {
@@ -236,7 +236,7 @@ const dmMachine = setup({
 
     llm_generate: fromPromise<any, {prompt:Message[]}>(async ({ input }) => {
       const body = {
-        model: "mistral",
+        model: "gemma2",  //mistral
         stream: false,
         messages: input.prompt,
         temperature: 0.5,
@@ -250,7 +250,7 @@ const dmMachine = setup({
 
     llm_generate2: fromPromise<any, {prompt: string}>(async ({ input }) => {
       const body = {
-        model: "mistral",
+        model: "gemma2", //mistral
         stream: false,
         prompt: input.prompt,
         temperature: 0.5
@@ -392,18 +392,18 @@ const dmMachine = setup({
           ({context}) => console.log(`This is context Language Code ${context.languageCode}`)
           ],
           target: "SkillLevelStateSpeak"},
-          // { // TURKISH?
-          // guard: ({event}) => event.output[0].includes("turkish"),  
-          // actions: [
-          //   assign(({ context }) => {
-          //     return { targetLang: "Turkish", targetVoice: "Burcu-Neural", languageCode: "tr-TR", character: "Fedora" };
-          //   }),
-          // // just logging some stuff...
-          // ({context}) => console.log(`This is context target Lang ${context.targetLang}`),
-          // ({context}) => console.log(`This is context target Voice ${context.targetVoice}`),
-          // ({context}) => console.log(`This is context Language Code ${context.languageCode}`)
-          // ],
-          // target: "SkillLevelStateSpeak"},
+          { // TURKISH?
+          guard: ({event}) => event.output[0].includes("turkish"),  
+          actions: [
+            assign(({ context }) => {
+              return { targetLang: "Turkish", targetVoice: "Burcu-Neural", languageCode: "tr-TR", character: "Fedora" };
+            }),
+          // just logging some stuff...
+          ({context}) => console.log(`This is context target Lang ${context.targetLang}`),
+          ({context}) => console.log(`This is context target Voice ${context.targetVoice}`),
+          ({context}) => console.log(`This is context Language Code ${context.languageCode}`)
+          ],
+          target: "SkillLevelStateSpeak"},
             { // FRENCH?
             guard: ({event}) => event.output[0].includes("french"),  
             actions: [
@@ -546,7 +546,7 @@ SkillLevelStateListen: {
           entry: [
             assign(({ context }) => {
               const promptAndlearnerInfo = insertLearnerInformation(context);
-              return { messages : [ ... context.messages, { role: "user", content: `Here is information about the user and the scenario you will role play : ${promptAndlearnerInfo}. PRESENT THE SCENARIO TO THE USER IN THE NEXT TURN BRIEFLY IN ENGLISH. DO NOT PRESENT THE SCENARIO IN THE TARGET LANGUAGE, ONLY IN ENGLISH. DO NOT START SUGGESTING WHAT THE USER COULD SAY IN THAT SCENARIO. DO NOT GENERATE THE TARGET LANGUAGE. ONLY GENERATE A SHORT DESCRIPTION OF THE SCENARIO IN ENGLISH.` }]};  // adding another user prompt in the context (messages holds all prompts and model's answers), contains target Lang and skill level
+              return { messages : [ ... context.messages, { role: "user", content: `Here is information about the user and the scenario you will role play : ${promptAndlearnerInfo}. PRESENT THE SCENARIO TO THE USER IN THE NEXT TURN BRIEFLY IN ENGLISH. DO NOT PRESENT THE SCENARIO IN THE TARGET LANGUAGE, ONLY IN ENGLISH. DO NOT START SUGGESTING WHAT THE USER COULD SAY IN THAT SCENARIO. DO NOT GENERATE THE TARGET LANGUAGE. ONLY GENERATE A DESCRIPTION OF THE SCENARIO IN ENGLISH.` }]};  // adding another user prompt in the context (messages holds all prompts and model's answers), contains target Lang and skill level
             }),
           ],
           invoke: {
@@ -672,7 +672,7 @@ SkillLevelStateListen: {
                    const responseObject = event.output[1]; // Response object
                    console.log(`This is the userMessage ${userMessage}`)
                    console.log(`This is the responseObject ${responseObject}`)},
-                   assign(({ context, event}) => { return { messages: [ ...context.messages, { role: "user", content: "The user wishes to end the conversation. Provide the user now with some feedback about the scenario role-play and their performance in English. At the end, say goodbye"}]}})
+                   assign(({ context, event}) => { return { messages: [ ...context.messages, { role: "user", content: "The user wishes to end the conversation. Provide the user now with some feedback about the scenario role-play and their performance in English. If the user made some mistakes having to do with cultural politeness aspects, you can suggest some improvements, At the end, say goodbye"}]}})
                ],
                target: "GenerateFeedBack",
                 
