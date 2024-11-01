@@ -1,6 +1,6 @@
 import { AnyActorRef, assign, createActor, fromPromise, setup } from "xstate";
 
-const FURHATURI = "127.0.0.1:54321";    //192.168.1.11:54321 <--- this is the physical Furhat uri
+const FURHATURI = "192.168.1.11:54321";    //192.168.1.11:54321 <--- this is the physical Furhat uri   virtual uri : "127.0.0.1:54321"
 
 
 // *************************************************************************
@@ -8,7 +8,6 @@ const FURHATURI = "127.0.0.1:54321";    //192.168.1.11:54321 <--- this is the ph
 // *************************************************************************
 
 // Furhat's listening function
-// check if it's possible to add language as an argument, Furhat needs different listening functions for different languages
 
 async function fhListen(language: string) {
   const myHeaders = new Headers();
@@ -181,7 +180,7 @@ const advanced_everydaylife = {
 };
 
 
-const languageoptions = "spanish, french, turkish, greek, and swedish"
+const languageoptions = "spanish, french, turkish, greek, finnish, and swedish"
 
 
 function getRandomScenario(scenarios: object) {
@@ -191,7 +190,8 @@ function getRandomScenario(scenarios: object) {
   return scenarios[randomKey]; 
 }
 
-const furhatGestures = [' Oh', ' Smile', ' Wink', ' BigSmile', ' Blink', ' BrowRaise', ' OpenEyes']
+const furhatGestures = [' Oh', ' Smile', ' Wink', ' BigSmile', ' Blink', ' BrowRaise', ' OpenEyes', ' Nod'
+]
 
 
 // ***************************************************************************
@@ -267,6 +267,7 @@ const dmMachine = setup({
         fhSay(input.message),
         fhGesture(input.gesture),
         fhAttendToUser(),
+        fhLed(200,20,50)
       ])
     }),
 
@@ -274,6 +275,7 @@ const dmMachine = setup({
       return Promise.all([
         fhSay(input.message),
         fhAttendToUser(),
+        fhLed(200,20,50)
       ])
     }),
 
@@ -297,7 +299,9 @@ const dmMachine = setup({
      fhChangeVoice: fromPromise<any, {voice: string, character: string}>(async ({input}) => {
       return Promise.all([
        fhVoiceChange(input.voice),
-      fhChangeCharacter(input.character)
+      fhChangeCharacter(input.character),
+      fhLed(50,20,200)
+
       ])
      }),
 
@@ -440,12 +444,25 @@ const dmMachine = setup({
           ({context}) => console.log(`This is context Language Code ${context.languageCode}`)
               ],
               target: "SkillLevelStateSpeak"},
+              { // FINNISH?
+                guard: ({event}) => event.output[0].includes("finish"),  
+                actions: [
+                assign(({ context }) => {
+                return { targetLang: "Finnish", targetVoice: "Suvi-Neural", languageCode: "fi-FI", character: "Jane" };
+                }),
+                // just logging some stuff...
+            ({context}) => console.log(`This is context target Lang ${context.targetLang}`),
+            ({context}) => console.log(`This is context target Voice ${context.targetVoice}`),
+            ({context}) => console.log(`This is context Language Code ${context.languageCode}`)
+                ],
+                target: "SkillLevelStateSpeak"},
 
               // else:
               {
                 actions: [
-                  ({event}) => console.log(`This is what the user said ${event.output[0]}`)
-                ]
+                  ({event}) => console.log(`This is what the user said ${event.output[0]}`),
+                ],
+                target: "NotValidLanguage"
               }
         ],
         onError: {
@@ -453,6 +470,21 @@ const dmMachine = setup({
         }
   },
 },
+
+    // in case chosen langauge is not valid
+    NotValidLanguage: {
+      invoke: {
+        src: "fhSpeakWGesture",
+        input: { message : `Hmm. I don't think I heard you right. Please repeat your choice of language. It needs to be one of these options: ${furhatGestures}`, gesture: "Thoughtful"},
+        onDone: {
+          target: "LanguageChoiceStateListen"
+        },
+        onError: {
+          target: "noInput"
+      }
+},
+
+    },
 
     // SkillLevel state speak - here the user will choose their skill level
     SkillLevelStateSpeak: {
@@ -492,12 +524,31 @@ SkillLevelStateListen: {
     ({context}) => console.log(`This is the skill level in the context${context.skillLevel}`)
     ],
     target: "ScenarioTypeStateSpeak"
+  },
+  // else:
+  {
+    target: "NotValidSkilllevel"
   }
 ],
   onError: {
     target: "noInput"
   }
 },
+},
+
+// in case the skill level is not valid
+NotValidSkilllevel: {
+  invoke: {
+    src: "fhSpeakWGesture",
+    input: { message : `Hmm, please state either beginner or advanced as skill level`, gesture: "Thoughtful"},
+    onDone: {
+      target: "SkillLevelStateListen"
+    },
+    onError: {
+      target: "noInput"
+  }
+},
+
 },
 
     // ScenarioTypeStateSpeak - here the user is asked if they would like to practise a professional setting or every-day setting
@@ -525,18 +576,37 @@ SkillLevelStateListen: {
           ],
           target: "Generate_LMM_answer1"
       },
-      { guard: ({ event}) => event.output[0].includes("every"),
+      { guard: ({ event}) => event.output[0].includes("every") || event.output[0].includes("day"),
           actions: [ assign(() => { return { scenarioType: "everyday" }}),
             ({ context }) => console.log(context.scenarioType)
           ],
           target: "Generate_LMM_answer1"
       },
+      // else:
+      {
+        target: "NotValidScenario"
+      }
 
     ],
       onError: {
         target: "noInput"
       }
     },
+},
+
+// in case the scenario is not valid
+NotValidScenario: {
+  invoke: {
+    src: "fhSpeakWGesture",
+    input: { message : `Oopsie, I think I didn't catch that. Please state either professional or every day for the scenario.`, gesture: "Thoughtful"},
+    onDone: {
+      target: "ScenarioTypeStateListen"
+    },
+    onError: {
+      target: "noInput"
+  }
+},
+
 },
 
     // in Generate_LMM_answer-state, the LMM answer gets generated and assigned to the context
