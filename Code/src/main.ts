@@ -337,9 +337,17 @@ const dmMachine = setup({
       ])
      }),
 
-     fhBackChannel: fromPromise<any, {url:string}>(async () => {
+     fhBackChannelmmhm: fromPromise<any, {url:string}>(async () => {
       return Promise.all([
-        fhAudioSound("https://raw.githubusercontent.com/Anurni/furhat-language-trainer-project-LT2319/main/hmm-mhmm-76486.wav")
+        fhAudioSound("https://raw.githubusercontent.com/Anurni/furhat-language-trainer-project-LT2319/main/hmm-mhmm-76486.wav"),
+        fhGesture("Smile")
+      ])
+     }),
+
+     fhBackChannelaha: fromPromise<any,{url:string}>(async () => {
+      return Promise.all([
+        fhAudioSound("https://raw.githubusercontent.com/Anurni/furhat-language-trainer-project-LT2319/main/Aha_Sound_Effect.wav"),
+        fhGesture("Smile")
       ])
      }),
 
@@ -419,6 +427,9 @@ const dmMachine = setup({
       // assigning also the language code (needed for listening in later states)
       // and target Voice (needed for speaking in the target language)
       LanguageChoiceStateListen: {
+        initial: "mainstate",
+        states: {
+          mainstate: {
         invoke: {
           src: "fhListenEnglish",
         onDone: [
@@ -433,7 +444,7 @@ const dmMachine = setup({
           ({context}) => console.log(`This is context target Voice ${context.targetVoice}`),
           ({context}) => console.log(`This is context Language Code ${context.languageCode}`)
           ],
-          target: "SkillLevelStateSpeak"},
+          target: "backchannelstate"},
           { // TURKISH?
           guard: ({event}) => event.output[0].includes("turkish"),  
           actions: [
@@ -445,7 +456,7 @@ const dmMachine = setup({
           ({context}) => console.log(`This is context target Voice ${context.targetVoice}`),
           ({context}) => console.log(`This is context Language Code ${context.languageCode}`)
           ],
-          target: "SkillLevelStateSpeak"},
+          target: "backchannelstate"},
             { // FRENCH?
             guard: ({event}) => event.output[0].includes("french"),  
             actions: [
@@ -457,7 +468,7 @@ const dmMachine = setup({
           ({context}) => console.log(`This is context target Voice ${context.targetVoice}`),
           ({context}) => console.log(`This is context Language Code ${context.languageCode}`)
               ],
-            target: "SkillLevelStateSpeak"},
+            target: "backchannelstate"},
             { // GREEK?
               guard: ({event}) => event.output[0].includes("greek"),  
               actions: [
@@ -469,7 +480,7 @@ const dmMachine = setup({
           ({context}) => console.log(`This is context target Voice ${context.targetVoice}`),
           ({context}) => console.log(`This is context Language Code ${context.languageCode}`)
               ],
-              target: "SkillLevelStateSpeak"},
+              target: "backchannelstate"},
               { // SWEDISH?
               guard: ({event}) => event.output[0].includes("swedish"),  
               actions: [
@@ -481,7 +492,7 @@ const dmMachine = setup({
           ({context}) => console.log(`This is context target Voice ${context.targetVoice}`),
           ({context}) => console.log(`This is context Language Code ${context.languageCode}`)
               ],
-              target: "SkillLevelStateSpeak"},
+              target: "backchannelstate"},
               { // FINNISH?
                 guard: ({event}) => event.output[0].includes("finish"),  
                 actions: [
@@ -493,20 +504,27 @@ const dmMachine = setup({
             ({context}) => console.log(`This is context target Voice ${context.targetVoice}`),
             ({context}) => console.log(`This is context Language Code ${context.languageCode}`)
                 ],
-                target: "SkillLevelStateSpeak"},
+                target: "backchannelstate"},
 
               // else:
               {
                 actions: [
                   ({event}) => console.log(`This is what the user said ${event.output[0]}`),
                 ],
-                target: "NotValidLanguage"
+                target: "#DM.NotValidLanguage"
               }
         ],
         onError: {
-          target: "noInput"
+          target: "#DM.noInput"
         }
-  },
+  }},
+  backchannelstate: {
+    invoke: {
+      src: "fhBackChannelaha",
+      onDone: "#DM.SkillLevelStateSpeak"
+    }
+  }
+},
 },
 
     // in case chosen langauge is not valid
@@ -580,7 +598,7 @@ SkillLevelStateListen: {
   },
   BackChannelState: {
     invoke: {
-      src: "fhBackChannel",
+      src: "fhBackChannelmmhm",
       onDone: "#DM.ScenarioTypeStateSpeak"
 
     }
@@ -668,7 +686,7 @@ NotValidScenario: {
           entry: [
             assign(({ context }) => {
               const promptAndlearnerInfo = insertLearnerInformation(context);
-              return { messages : [ ... context.messages, { role: "user", content: `Here is information about the user and the scenario you will role play : ${promptAndlearnerInfo}. PRESENT THE SCENARIO TO THE USER IN THE NEXT TURN BRIEFLY IN ENGLISH. DO NOT PRESENT THE SCENARIO IN THE TARGET LANGUAGE, ONLY IN ENGLISH. DO NOT START SUGGESTING WHAT THE USER COULD SAY IN THAT SCENARIO. DO NOT GENERATE THE TARGET LANGUAGE. ONLY GENERATE A DESCRIPTION OF THE SCENARIO IN ENGLISH.` }]};  // adding another user prompt in the context (messages holds all prompts and model's answers), contains target Lang and skill level
+              return { messages : [ ... context.messages, { role: "user", content: `Here is information about the user and the scenario you will role play : ${promptAndlearnerInfo}. PRESENT THE SCENARIO TO THE USER IN THE NEXT TURN BRIEFLY IN ENGLISH. DO NOT PRESENT THE SCENARIO IN THE TARGET LANGUAGE, ONLY IN ENGLISH. DO NOT START SUGGESTING WHAT THE USER COULD SAY IN THAT SCENARIO. DO NOT GENERATE EMOJIS` }]};  // adding another user prompt in the context (messages holds all prompts and model's answers), contains target Lang and skill level
             }),
           ],
           invoke: {
