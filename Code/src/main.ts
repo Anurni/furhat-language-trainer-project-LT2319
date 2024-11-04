@@ -531,7 +531,7 @@ const dmMachine = setup({
     NotValidLanguage: {
       invoke: {
         src: "fhSpeakWGesture",
-        input: { message : `Hmm. I don't think I heard you right. Please repeat your choice of language. It needs to be one of these options: ${furhatGestures}`, gesture: "Thoughtful"},
+        input: { message : `Hmm. I don't think I heard you right. Please repeat your choice of language. It needs to be one of these options: ${languageoptions}`, gesture: "Thoughtful"},
         onDone: {
           target: "LanguageChoiceStateListen"
         },
