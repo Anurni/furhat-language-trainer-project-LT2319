@@ -1,7 +1,7 @@
-﻿## Furhat the spoken language instructor (Final course project for L2319 - Dialogue Systems II) - Anni Nieminen
+﻿## Furhat the Spoken Language Instructor (Final course project for L2319 - Dialogue Systems II) - Anni Nieminen
 
- This respository holds my code, additional sound files for the final course project of L2319.
- This repository also holds my project presentation slides and a transcribed example dialogue handled by the system.
+ This respository holds my code as well as additional sound files for the final course project of L2319.
+ This repository also holds my project presentation slides, a transcribed example dialogue handled by the system and a demo video.
  In order to test the code, the Furhat remote API needs to be on (on the SDK). 
  
  Run the code with 
