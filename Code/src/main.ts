@@ -1,29 +1,15 @@
 import { AnyActorRef, assign, createActor, fromPromise, setup } from "xstate";
 
-const FURHATURI = "127.0.0.1:54321";    //192.168.1.11:54321 <--- this is the physical Furhat uri   virtual uri : "127.0.0.1:54321"
+const FURHATURI = "127.0.0.1:54321";   
 
 
 // *************************************************************************
-// FUNCTIONS ARE DEFINED HERE
+// FURHAT FUNCTIONS 
 // *************************************************************************
 
 // Furhat's listening function
 
-// async function fhListen(language: string) {
-//   const myHeaders = new Headers();
-//   const encLang = encodeURIComponent(language)
-//   myHeaders.append("accept", "application/json");
-//   return fetch(`http://${FURHATURI}/furhat/listen?language=${encLang}`, {
-//     method: "GET",
-//     headers: myHeaders,
-//   })
-//     .then((response) => response.body)
-//     .then((body) => body.getReader().read())
-//     .then((reader) => reader.value)
-//     .then((value) => JSON.parse(new TextDecoder().decode(value)).message);
-// }
-
-async function fhListen(timeout = 20000, language: string) {  // Default timeout is 5000 milliseconds (5 seconds)
+async function fhListen(timeout = 20000, language: string) {  
   const myHeaders = new Headers();
   myHeaders.append("accept", "application/json");
 
@@ -69,7 +55,7 @@ async function fhSay(text: string) {
   });
 }
 
-// audio producing function
+// Furhat audio producing function
 async function fhAudioSound(url: string) {
   const myHeaders = new Headers();
   myHeaders.append("accept", "application/json");
@@ -87,7 +73,7 @@ async function fhAudioSound(url: string) {
 async function fhVoiceChange(voice: string) {
   const myHeaders = new Headers();
   myHeaders.append("accept", "application/json");
-  const encText = encodeURIComponent(voice); // This is not used in the fetch call
+  const encText = encodeURIComponent(voice); 
   return fetch(`http://${FURHATURI}/furhat/voice?name=${encText}`, {
     method: "POST",
     headers: myHeaders,
@@ -157,7 +143,7 @@ async function fhAttendToUser() {
 }
 
 // *************************************************************
-// other functions and consts are defined here
+// other functions and consts 
 // *************************************************************
 
 function insertLearnerInformation(context : any) {
@@ -818,7 +804,7 @@ NotValidScenario: {
                 
               },
               {   // for cases where the user needs help from Furhat (usually vocabulary help)
-                guard: ({ event }) => event.output[0].includes("apua") || event.output[0].includes("help") || event.output[0].includes("hjälp") || event.output[0].includes("hjälpa")  || event.output[0].includes("aider") || event.output[0].includes("auttaa") || event.output[0].includes("yardım") || event.output[0].includes("ayuda") || event.output[0].includes("ayuda") || event.output[0].includes("βοήθεια"),
+                guard: ({ event }) => event.output[0].includes("apua") || event.output[0].includes("help") || event.output[0].includes("hjälp") || event.output[0].includes("hjälpa")  || event.output[0].includes("aide") || event.output[0].includes("auttaa") || event.output[0].includes("yardım") || event.output[0].includes("ayuda") || event.output[0].includes("ayuda") || event.output[0].includes("βοήθεια"),
                 actions: [
                   assign(({ context }) => { return { messages: [ ...context.messages, { role: "user", content: "The user needs help with their answer. Proceed to ask them what they want to say. Ask that question in English"}]}})
                 ],
@@ -877,7 +863,7 @@ NotValidScenario: {
           }
         },
 
-      // for side-tracking the conversation (triggered by the use of the key word "furhat")
+      // for side-tracking the conversation (triggered by the use of the key word help in the target lang)
       // the model will be prompted to help the user with their answer
       // and then return to the "role play" mode
       HelpUser: {
