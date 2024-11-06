@@ -175,12 +175,12 @@ const beginner_professionallife = {
 };
 
 const beginner_everydaylife = {
-  1: "ordering a coffee at a café",
-  2: "talking about your family to a friend",
-  3: "discussing your weekend plans",
-  4: "asking someone about their favourite food",
-  5: "asking for directions out downtown",
-  6: "book a dentist appointment over the phone"
+ 1: "ordering a coffee at a café",
+ 2: "talking about your family to a friend",
+ 3: "discussing your upcoming weekend plans with a friend",
+ 4: "asking someone about their favourite food",
+ 5: "asking for directions out downtown",
+ 6: "book a dentist appointment over the phone"
 };
 
 const advanced_professionallife = {
